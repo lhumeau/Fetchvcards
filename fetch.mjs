@@ -2,7 +2,7 @@ import fetch from 'node-fetch';
 import cheerio from 'cheerio';
 import fs from 'fs';
 
-const baseURL = 'https://prueba/vcard/';
+const baseURL = 'https://[prueba]/vcard/';
 const batchSize = 100; // Procesaremos 100 IDs a la vez
 const idInicial = 'cd89fe'; // Este es el ID inicial que quieres procesar
 
