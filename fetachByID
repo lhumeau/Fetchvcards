@@ -1,0 +1,69 @@
+import fetch from 'node-fetch';
+import cheerio from 'cheerio';
+import fs from 'fs';
+
+const baseURL = 'https://FQDN?id=';
+const startID = 13000;
+const endID = 14000;
+const batchSize = 50;
+
+const fetchAllLinks = async (start, end) => {
+  const links = Array.from(
+    { length: batchSize },
+    (_, i) => `${baseURL}${start + i}`
+  );
+
+  try {
+    const results = await Promise.allSettled(links.map((link) => fetch(link)));
+
+    const data = await Promise.all(
+      results.map(async (result, index) => {
+        const currentID = start + index;
+
+        if (result.status === 'fulfilled') {
+          // Convertir la respuesta a texto (HTML)
+          const htmlText = await result.value.text();
+
+          // Parsear el HTML con cheerio
+          const $ = cheerio.load(htmlText);
+
+          // Buscar el elemento y extraer el contenido
+          const spanContent = $('#ContentPlaceHolder1_lblEventoHeader').text();
+
+          if (spanContent) {
+            return `${currentID}: ${spanContent}`;
+          } else {
+            console.error(
+              `Elemento no encontrado en el enlace ${links[index]}`
+            );
+            return `${currentID}: No encontrado`;
+          }
+        } else {
+          console.error(
+            `Error con el enlace ${links[index]}: ${result.reason}`
+          );
+          return `${currentID}: Error en la solicitud`;
+        }
+      })
+    );
+
+    return data;
+  } catch (error) {
+    console.error('Error inesperado:', error);
+  }
+};
+
+const processAllBatches = async () => {
+  let results = [];
+  for (let i = startID; i < endID; i += batchSize) {
+    const batchResults = await fetchAllLinks(i, i + batchSize);
+    results = results.concat(batchResults);
+    console.log(`Procesados IDs desde ${i} hasta ${i + batchSize - 1}`);
+  }
+  return results;
+};
+
+processAllBatches().then((data) => {
+  fs.writeFileSync('results.log', data.join('\n'), 'utf-8');
+  console.log('Resultados guardados en results.log');
+});
